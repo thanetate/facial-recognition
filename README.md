@@ -1,7 +1,9 @@
-# facial-recognition
-A Facial Recognition System
+### facial recognition system 
+
+CSCE 4240
 
 Option A – face recognition from videos
+
 Build a system that acquires a video (or images) and detects the person in the scope of view. Imagine a
 camera installed at an entrance captures videos of people entering and leaving the premises. The
 software system will detect the person registered in the system and alert a stranger who is not registered
