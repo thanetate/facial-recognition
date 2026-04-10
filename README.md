@@ -1,4 +1,4 @@
-### facial recognition system 
+### Facial Recognition System 
 
 CSCE 4240
 
