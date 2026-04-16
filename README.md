@@ -75,7 +75,7 @@ Files used:
 Dependencies needed before running:
 
 1. Python 3.10+ (3.13 is also fine)
-2. OpenCV for Python (`opencv-python`)
+2. OpenCV for Python (`opencv-python`) `python3 -m pip install opencv-python`
 
 Install dependencies (no virtual environment):
 
