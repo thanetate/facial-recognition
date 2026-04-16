@@ -62,3 +62,36 @@ This keeps the project simple, offline, and easy to demo.
 5. Show result on screen (name or UNKNOWN).
 6. Trigger a simple alert for unknown (console message + saved snapshot).
 7. Log events (time, label, confidence) to a CSV file.
+
+#### Day 1
+
+Goal: verify the core pipeline starts correctly by opening a video source and detecting faces.
+
+Files used:
+
+1. `main.py` - opens webcam/video and draws face boxes.
+2. `requirements.txt` - minimal dependency list.
+
+Dependencies needed before running:
+
+1. Python 3.10+ (3.13 is also fine)
+2. OpenCV for Python (`opencv-python`)
+
+Install dependencies (no virtual environment):
+
+1. `python3 -m pip install --user -r requirements.txt`
+2. If you see "externally-managed-environment" on macOS/Homebrew Python, use:
+   `python3 -m pip install --user --break-system-packages -r requirements.txt`
+
+Run steps:
+
+1. Webcam: `python3 main.py --source 0`
+2. Video file: `python3 main.py --source path/to/video.mp4`
+
+Verification checklist:
+
+1. A window opens and displays live frames.
+2. Face boxes appear around visible faces.
+3. Face count text updates as people enter/leave view.
+4. Press `Ctrl+C` in the terminal to quit cleanly.
+5. Quick dependency check (optional): `python3 -c "import cv2; print(cv2.__version__)"`
