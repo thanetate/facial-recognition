@@ -33,22 +33,25 @@ Advanced: robust multi-frame decision logic with confidence thresholds and coold
 
 2. enroll.py
    Add registered users from images
-   Build/save face encodings file
+   Build/save the local face-recognition model
 
 Plus folders:
 data/known_faces/ (training images by person)
-data/encodings.pkl (saved embeddings)
+data/model.yml (saved face-recognition model)
+data/labels.json (label map from IDs to names)
 logs/events.csv and alerts/ (logs and unknown snapshots)
 
 #### Data Storage Plan (Local Only)
 
 No cloud database is required for this project. All data stays local:
 
-1. Face encodings: `data/encodings.pkl`
-   Stores registered user embeddings and labels.
-2. Event log: `logs/events.csv`
+1. Face model: `data/model.yml`
+   Stores the trained local face-recognition model.
+2. Label map: `data/labels.json`
+   Stores the numeric ID to person-name mapping.
+3. Event log: `logs/events.csv`
    Stores timestamp, predicted label, and confidence score.
-3. Alert images: `alerts/`
+4. Alert images: `alerts/`
    Stores snapshots for unknown-person detections.
 
 This keeps the project simple, offline, and easy to demo.
@@ -75,7 +78,8 @@ Files used:
 Dependencies needed before running:
 
 1. Python 3.10+ (3.13 is also fine)
-2. OpenCV for Python (`opencv-python`) `python3 -m pip install opencv-python`
+2. OpenCV with face-recognition support (`opencv-contrib-python`)
+3. NumPy (`numpy`)
 
 Install dependencies (no virtual environment):
 
@@ -85,8 +89,14 @@ Install dependencies (no virtual environment):
 
 Run steps:
 
-1. Webcam: `python3 main.py --source 0`
-2. Video file: `python3 main.py --source path/to/video.mp4`
+0. Train the local model with:
+   `python3 enroll.py` or `.venv/bin/python enroll.py`
+
+1. Webcam:
+   `python3 main.py --source 0`or ` .venv/bin/python main.py --source 0`
+
+2. Video file:
+   `python3 main.py --source path/to/video.mp4` or `.venv/bin/python main.py --source video/test1.mp4`
 
 Verification checklist:
 
@@ -95,3 +105,32 @@ Verification checklist:
 3. Face count text updates as people enter/leave view.
 4. Press `Ctrl+C` in the terminal to quit cleanly.
 5. Quick dependency check (optional): `python3 -c "import cv2; print(cv2.__version__)"`
+
+#### Day 2
+
+Goal: train a local face-recognition model from your own pictures and use it to label faces in video.
+
+Files used:
+
+1. `enroll.py` - trains the local model from images in `data/known_faces`.
+2. `main.py` - loads the saved model and labels known or unknown faces.
+3. `data/known_faces/` - one folder per person, containing that person's photos.
+
+Project setup for training:
+
+1. Create folders like `data/known_faces/alex/` and `data/known_faces/sam/`.
+2. Put a few clear face photos in each person's folder (JPG Images).
+3. Use front-facing photos with good lighting, a visible face, and minimal blur.
+4. Include a few different angles or expressions, but keep the face large and clear.
+5. Avoid sunglasses, heavy shadows, group photos, and tiny faces if possible.
+6. Run `python3 enroll.py` to build `data/model.yml` and `data/labels.json`.
+7. Run `python3 main.py --source video/test1.mp4` to test recognition on a video file.
+
+Verification checklist:
+
+1. `data/model.yml` is created after training.
+2. `data/labels.json` is created after training.
+3. The video window still opens and detects faces.
+4. Known people show a name above their face.
+5. Unknown people show `UNKNOWN`.
+6. Press `Ctrl+C` in the terminal to stop cleanly.

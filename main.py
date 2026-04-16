@@ -1,5 +1,7 @@
 import argparse
+import json
 from pathlib import Path
+
 import cv2
 
 
@@ -37,7 +39,44 @@ def build_parser() -> argparse.ArgumentParser:
         # Higher values make detection stricter and usually reduce noise.
         help="Min neighbors - Haar cascade detector.",
     )
+    parser.add_argument(
+        "--model",
+        default="data/model.yml",
+        # This file is created by enroll.py after training on known face images.
+        help="Path to the saved face-recognition model.",
+    )
+    parser.add_argument(
+        "--labels",
+        default="data/labels.json",
+        # This file maps numeric training IDs back to person names.
+        help="Path to the saved label map.",
+    )
+    parser.add_argument(
+        "--unknown-threshold",
+        type=float,
+        default=80.0,
+        # Lower confidence values are better for LBPH, so values above this are unknown.
+        help="Confidence threshold for unknown faces.",
+    )
     return parser
+
+
+def load_label_map(labels_path: Path) -> dict[int, str]:
+    # Convert the saved JSON keys back into integers for lookup during recognition.
+    if not labels_path.exists():
+        return {}
+
+    with labels_path.open("r", encoding="utf-8") as file_handle:
+        raw_labels = json.load(file_handle)
+
+    return {int(label_id): name for label_id, name in raw_labels.items()}
+
+
+def create_face_recognizer():
+    # LBPH lives in opencv-contrib, so recognition only works if that package is installed.
+    if not hasattr(cv2, "face"):
+        return None
+    return cv2.face.LBPHFaceRecognizer_create()
 
 
 def main() -> int:
@@ -58,6 +97,30 @@ def main() -> int:
     if not cap.isOpened():
         print(f"Error: could not open video source: {source}")
         return 1
+
+    model_path = Path(args.model)
+    labels_path = Path(args.labels)
+    label_map = load_label_map(labels_path)
+    recognizer = None
+
+    # Load the trained model only if it exists.
+    if model_path.exists() and label_map:
+        recognizer = create_face_recognizer()
+        if recognizer is None:
+            print("Warning: cv2.face is not available, so recognition is disabled.")
+        else:
+            # This loads the model that was created by enroll.py.
+            recognizer.read(str(model_path))
+            print(f"Loaded recognition model from {model_path}")
+    else:
+        print("No trained model found yet, so this run will only detect faces.")
+
+    # Match file playback to the video's own frame rate when possible.
+    source_fps = cap.get(cv2.CAP_PROP_FPS)
+    if source_fps and source_fps > 0:
+        frame_delay_ms = max(1, int(round(1000 / source_fps)))
+    else:
+        frame_delay_ms = 1
 
     # Keep the app running until the user stops it with Ctrl+C or the video ends.
     print("Running face detection. Press Ctrl+C in the terminal to stop.")
@@ -86,6 +149,29 @@ def main() -> int:
                 # Draw a box around each detected face.
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (50, 200, 50), 2)
 
+                # If we have a trained model, use it to label the face.
+                if recognizer is not None:
+                    # Crop the detected face and resize it to match training images.
+                    face_region = gray[y : y + h, x : x + w]
+                    if face_region.size > 0:
+                        face_region = cv2.resize(face_region, (200, 200))
+                        label_id, confidence = recognizer.predict(face_region)
+                        person_name = label_map.get(label_id, "UNKNOWN")
+                        is_known = confidence <= args.unknown_threshold and person_name != "UNKNOWN"
+
+                        label_text = person_name if is_known else "UNKNOWN"
+                        label_color = (50, 200, 50) if is_known else (0, 0, 255)
+                        cv2.putText(
+                            frame,
+                            f"{label_text} ({confidence:.1f})",
+                            (x, max(20, y - 10)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            label_color,
+                            2,
+                            cv2.LINE_AA,
+                        )
+
             # Show the current number of detected faces in the corner.
             cv2.putText(
                 frame,
@@ -100,8 +186,9 @@ def main() -> int:
 
             # Display the processed frame in a window.
             cv2.imshow("Facial Recognition - Milestone 1", frame)
-            # waitKey keeps the window responsive even when we are not reading keys.
-            cv2.waitKey(1)
+            # Use the video's FPS for file playback so it feels closer to normal speed.
+            # For webcams, this still keeps the window responsive.
+            cv2.waitKey(frame_delay_ms)
     except KeyboardInterrupt:
         print("Stopped by user with Ctrl+C.")
     finally:
