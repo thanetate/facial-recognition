@@ -134,3 +134,20 @@ Verification checklist:
 4. Known people show a name above their face.
 5. Unknown people show `UNKNOWN`.
 6. Press `Ctrl+C` in the terminal to stop cleanly.
+
+#### Whats Next?
+
+Stranger alert action: right now you label UNKNOWN, but you should also trigger an alert event (at minimum console alert + save snapshot).
+Persistent event logging: save timestamp, predicted label, confidence, source to a local CSV.
+Clear “registered in system” workflow evidence: document and demo enrollment output (model + labels) as part of final deliverable.
+Optional but good to strengthen grading:
+
+Threshold tuning + short evaluation table (false matches, unknown detection rate).
+Your “go deeper” feature (temporal smoothing over multiple frames) to reduce one-frame mislabels.
+Practical next steps:
+
+Add unknown alert snapshot saving.
+Add CSV logging for every recognition event.
+Add cooldown so same unknown isn’t logged every frame.
+Run 3 demo scenarios: known person, unknown person, mixed scene.
+Record results and include a short metrics section in README/report.
