@@ -1,9 +1,38 @@
 import argparse
 import json
 from pathlib import Path
-
 import cv2
+import csv
+import time
+from datetime import datetime
 
+def log_event(label, confidence):
+    Path("logs").mkdir(exist_ok=True)
+
+    file_path = Path("logs/events.csv")
+    file_exists = file_path.exists()
+
+    with open(file_path, "a", newline="") as f:
+        writer = csv.writer(f)
+
+        if not file_exists:
+            writer.writerow(["timestamp", "label", "confidence"])
+
+        writer.writerow([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            label,
+            round(confidence, 2)
+        ])
+
+
+def save_unknown_snapshot(frame):
+    Path("alerts").mkdir(exist_ok=True)
+
+    filename = datetime.now().strftime("unknown_%Y%m%d_%H%M%S.jpg")
+    filepath = Path("alerts") / filename
+
+    cv2.imwrite(str(filepath), frame)
+    return filepath
 
 def parse_source(raw_source: str):
     # Support both camera index ("0") and file path input.
@@ -102,6 +131,12 @@ def main() -> int:
     labels_path = Path(args.labels)
     label_map = load_label_map(labels_path)
     recognizer = None
+    known_count = 0
+    unknown_count = 0
+    frame_count = 0
+    last_alert_time = 0
+    cooldown_seconds = 5
+
 
     # Load the trained model only if it exists.
     if model_path.exists() and label_map:
@@ -134,6 +169,8 @@ def main() -> int:
             if not ok:
                 print("End of stream or failed frame read.")
                 break
+            
+            frame_count += 1
 
             # Detect faces in grayscale for faster and more stable detection.
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -160,17 +197,38 @@ def main() -> int:
                         is_known = confidence <= args.unknown_threshold and person_name != "UNKNOWN"
 
                         label_text = person_name if is_known else "UNKNOWN"
-                        label_color = (50, 200, 50) if is_known else (0, 0, 255)
+                        if is_known:
+                            known_count += 1
+                            log_event(person_name, confidence)
+                            label_color = (50, 200, 50)
+
+                        else:
+                            label_color = (0, 0, 255)
+
+                            current_time = time.time()
+
+                            if current_time - last_alert_time > cooldown_seconds:
+                                last_alert_time = current_time
+                                unknown_count += 1
+
+                                print("ALERT: Unknown person detected!")
+
+                                filepath = save_unknown_snapshot(frame)
+                                print(f"Saved snapshot: {filepath}")
+
+                                log_event("UNKNOWN", confidence)
                         cv2.putText(
                             frame,
                             f"{label_text} ({confidence:.1f})",
                             (x, max(20, y - 10)),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6,
+                            1.0,
                             label_color,
-                            2,
+                            3,
                             cv2.LINE_AA,
                         )
+
+
 
             # Show the current number of detected faces in the corner.
             cv2.putText(
@@ -178,9 +236,9 @@ def main() -> int:
                 f"Faces: {len(faces)}",
                 (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
+                1.2,
                 (255, 255, 255),
-                2,
+                3,
                 cv2.LINE_AA,
             )
 
@@ -192,6 +250,11 @@ def main() -> int:
     except KeyboardInterrupt:
         print("Stopped by user with Ctrl+C.")
     finally:
+        print("\nSession Summary")
+        print(f"Frames processed: {frame_count}")
+        print(f"Known detections: {known_count}")
+        print(f"Unknown alerts: {unknown_count}")
+        
         # Release the camera/video and close the window cleanly.
         cap.release()
         cv2.destroyAllWindows()
