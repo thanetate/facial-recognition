@@ -6,6 +6,7 @@ import csv
 import time
 from datetime import datetime
 
+# Logs every detection event to a CSV file
 def log_event(label, confidence):
     Path("logs").mkdir(exist_ok=True)
 
@@ -24,7 +25,7 @@ def log_event(label, confidence):
             round(confidence, 2)
         ])
 
-
+# Saves image snapshots when an unknown person is detected
 def save_unknown_snapshot(frame):
     Path("alerts").mkdir(exist_ok=True)
 
