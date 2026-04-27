@@ -65,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--min-neighbors",
         type=int,
-        default=5,
+        default=9,
         # Higher values make detection stricter and usually reduce noise.
         help="Min neighbors - Haar cascade detector.",
     )
@@ -137,6 +137,9 @@ def main() -> int:
     frame_count = 0
     last_alert_time = 0
     cooldown_seconds = 5
+    last_face = None
+    missed_frames = 0
+    max_missed_frames = 3
 
 
     # Load the trained model only if it exists.
@@ -163,6 +166,7 @@ def main() -> int:
 
     # Create the window once so OpenCV can show frames consistently.
     cv2.namedWindow("Facial Recognition - Milestone 1", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Facial Recognition - Milestone 1", 960, 540)
 
     try:
         while True:
@@ -180,8 +184,34 @@ def main() -> int:
                 gray,
                 scaleFactor=args.scale_factor,
                 minNeighbors=args.min_neighbors,
-                minSize=(40, 40),
+                minSize=(100, 100),
             )
+
+            if len(faces) > 1:
+                faces = [max(faces, key=lambda face: face[2] * face[3])]
+
+            if len(faces) == 1:
+                x, y, w, h = faces[0]
+
+                if last_face is not None:
+                    lx, ly, lw, lh = last_face
+
+                    x = int((x + lx) / 2)
+                    y = int((y + ly) / 2)
+                    w = int((w + lw) / 2)
+                    h = int((h + lh) / 2)
+
+                faces = [(x, y, w, h)]
+                last_face = (x, y, w, h)
+                missed_frames = 0
+
+            elif len(faces) == 0 and last_face is not None and missed_frames < max_missed_frames:
+                faces = [last_face]
+                missed_frames += 1
+
+            else:
+                last_face = None
+                missed_frames = 0
 
             for x, y, w, h in faces:
                 # Draw a box around each detected face.
